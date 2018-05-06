@@ -3,6 +3,12 @@
 Created on Thu Apr 19 21:09:58 2018
 
 @author: VicWang
+
+
+s.strip()     #开头和结尾
+s.lstrip()   #开头
+s.rstrip()  #结尾
+
 """
 import tkinter as tk
 #import configparser
@@ -10,6 +16,8 @@ import serial.tools.list_ports as list_ports
 import serial
 import time
 from configparser import ConfigParser   #取configparser模块中的ConfigParser类
+#import threading
+
 '''
 -------------------------------------------------------------------------------
 cfg文件调用类函数定义
@@ -41,6 +49,7 @@ class cfg_tool(ConfigParser):           #继承父类
                 options = self.conf.options(section_you_choose)       #options数组
                 for i in range(len(options)):                   #对应的行
                     if i == option_row_you_choose:
+                            #print('options[i].split',options[i].split('\t'))
                             if options[i].split('\t')[1] == 'a':
                                 return ''
                             else:
@@ -135,17 +144,21 @@ def data_split(protocol_str,protocol_option):
                 protocol_dataflag+=protocol_Drop_startbit[i]
                 if i == 13 and protocol_option == 'DATAFLAG':
                     return protocol_dataflag
-            elif 14<=i<=15:           #12和13位为datainfo前两位表示datainfo数据的长度
-                protocol_data_number+=protocol_Drop_startbit[i]    #
-                if i == 15 and protocol_option == 'DATA_NUM':
-                    return protocol_data_number
-            elif 16<=i<=len(protocol_Drop_startbit)-4-1:   #
+            elif 14<=i<=len(protocol_Drop_startbit)-4-1 and protocol_option == 'DATA_INFO_for_switch':
                 protocol_info+=protocol_Drop_startbit[i]
-                if i == len(protocol_Drop_startbit)-4-1 and protocol_option == 'DATA_INFO':
+                if i == len(protocol_Drop_startbit)-4-1:
                     return protocol_info
-            elif  len(protocol_Drop_startbit)-4<=i<=len(protocol_Drop_startbit)-1:
+            elif 14<=i<=15 and protocol_option == 'DATA_NUM':           #12和13位为datainfo前两位表示datainfo数据的长度
+                protocol_data_number+=protocol_Drop_startbit[i]    #
+                if i == 15:
+                    return protocol_data_number
+            elif 16<=i<=len(protocol_Drop_startbit)-4-1 and protocol_option == 'DATA_INFO':   #
+                protocol_info+=protocol_Drop_startbit[i]
+                if i == len(protocol_Drop_startbit)-4-1:
+                    return protocol_info
+            elif  len(protocol_Drop_startbit)-4<=i<=len(protocol_Drop_startbit)-1 and protocol_option == 'CHKSUM':
                 protocol_chksum+=protocol_Drop_startbit[i]
-                if i == len(protocol_Drop_startbit)-1 and protocol_option == 'CHKSUM':
+                if i == len(protocol_Drop_startbit)-1:
                     return protocol_chksum
         elif protocol_option == 'CID2_DICT':
             return protocol_CID2_dict
@@ -209,6 +222,24 @@ def set_analog_quantity_to_label(common_label_dict):
         label_key = list(common_label_dict.keys())[i]
         label_value = common_label_dict.get(label_key)
         common_label(label_value[0],label_key,label_value[1],label_value[2],2,15,'groove')
+#创建下拉菜单列表
+#frame:所在框   name:菜单名   menulist = 下拉菜单列表  commandlist = 下拉菜单对应的命令列表
+def set_the_menu(frame,label_name,weight_name,menulist,commandlist):
+    #menu_main_button = tk.Menu(frame)
+    weight_name = tk.Menu(frame,tearoff = 0)
+    frame.add_cascade(label = label_name,menu = weight_name)
+    for i in range(len(menulist)):
+        weight_name.add_command(label = menulist[i],command = commandlist[i])
+    #frame.config(menu =menu_main_button)
+#预留，用于后续控制扩展
+def donothing():
+   filewin = tk.Toplevel()
+   button = tk.Button(filewin, text="Do nothing button")
+   button.pack()
+
+
+
+
 '''
 -------------------------------------------------------------------------------
 函数处理类函数定义
@@ -299,9 +330,9 @@ def get_chksum(data_str_exclude_chksum):
     sum_chksum=data_reverse(sum_chksum,4)
 
     return hex(sum_chksum_bin+1).lstrip('0x').upper()       #取反+1转16进制去掉'0x'换算成大写，返回校验和
-        
+
     
-    
+ 
     
     
     

@@ -1,26 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Apr  9 21:32:16 2018
+Created on Wed May  2 20:13:51 2018
 
-@author: VicWang
+@author: Administrator
 """
-'''
-#import binascii
-#------------------------------------------------------
-#各种转换
-a = 0x0A  #表示16进制数
-b = 10    #表示10进制数
-print(hex(b)) #10转16                输出0xa
-print(a)  #输出10进制数             输出10
-print((b'a')) #转换为bytes供串口传输   输出b'a'
-print(chr(49))   #10进制整形转换成对应ASCII字符 输出1
-print(chr(0x31))  #16进制整形转换成对应ASCII字符 输出1
-print(hex(ord('1')))    #ASCII转16进制，输出0x31
-print((ord('1')))     #ASCII转10进制，输出49
-print(int('1010',2))   #2进制转10进制
-print(bin(10))        #十进制转2进制
-#-------------------------------------------------------
-'''
+
 import func_def as func
 
 
@@ -39,7 +23,7 @@ def analysis_protocol(protocol_str):
     protocol_lchksum = func.data_split(protocol_str,'LCHKSUM')   #LENGTH的lchksum
     protocol_length = func.data_split(protocol_str,'LENGTH')    #LENGTH的LENID
     protocol_chksum = func.data_split(protocol_str,'CHKSUM')    #CHKSUM
-    protocol_info = func.data_split(protocol_str,'DATA_INFO')
+    protocol_info = func.data_split(protocol_str,'DATA_INFO_for_switch')
     protocol_dataflag = func.data_split(protocol_str,'DATAFLAG')
     protocol_data_number = func.data_split(protocol_str,'DATA_NUM')
     protocol_CID2_dict = {
@@ -54,6 +38,30 @@ def analysis_protocol(protocol_str):
                           '81':'操作失败',
                           '82':'存储芯片故障'
                           }
+
+    protocol_switching_value_word1_dict = {                     #开关量状态字典
+            '15':['','','','','','','','','','','','','','',''],
+            '14':['断开状态','闭合状态'],
+            '13':['断开状态(无效)','闭合状态(无效)'],
+            '12':['断开状态','闭合状态'],
+            '11':['断开状态(无效)','闭合状态(无效)'],
+            '10':['发电机未接入(无效)','发电机接入(无效)'],
+            '9':['主路逆变供电','电池逆变供电','联合逆变供电','整流电池均不供电'],
+            '7':['关机','开机'],
+            '6':['非充电状态','浮充','均充'],
+            '4':['没有自检','自检中'],
+            '3':['\\','\\','\\','\\'],
+            '1':['均不供电','逆变供电','旁路供电'],
+                                    }
+ 
+    protocol_switching_value_word2_dict = {
+            '8':['\\'],
+            '7':['非ECO模式','ECO模式'],
+            '6':['非智能并机模式(无效)','智能并机模式(无效)'],
+            '5':['未接入(无效)','接入(无效)'],
+            '4':['正常模式','维修模式','步进模式','自老化模式','隔离模式'],
+            '1':['主路逆变供电(无效)','电池逆变供电(无效)','旁路供电(无效)','均不供电(无效)'],
+                                            }
     
     '''
     -------------------------------
@@ -109,47 +117,76 @@ def analysis_protocol(protocol_str):
         print("LCHKSUM校验值错误")
         return 0
     #验证LENID与info的长度是否匹配
-    
+#-----------------------------
 
-    ############################拆出datainfo#############################
-    '''
-    以上内容为通用设置，以下内容根据DATAINFO的构成编写
-    只含有DATAF的类型如下：
-    '''
-
-    #dataflag
-    #protocol_dataflag = ord(protocol_dataflag)
-    #print("protocol_dataflag",protocol_dataflag)
-
-          
-    #print("DATAINFO:",protocol_info)
+    protocol_dataf_list = []
     if protocol_info == None:
         pass
-    elif len(protocol_info)%8 != 0:         #判断info长度
+    elif len(protocol_info) != 8:         #判断info长度
         print("DATAINFO长度有误")
         return 0
-    elif len(protocol_info)%8 == 0:          #如果是8的倍数，则分割开始计算数值
-        #print("info长度",len(protocol_info))
-        protocol_info_list = []
-        for i in range(0,len(protocol_info),8):
-            protocol_info_list.append(protocol_info[i:i+8])
-        #print(protocol_info_list)
-        protocol_dataf_list = []
-        for i in range(0,len(protocol_info_list)):
-            protocol_dataf_list.append(func.calc_float((protocol_info_list[i])))
-            #print("第%d个数为："%(i+1),func.calc_float((protocol_info_list[i])))
     else:
-        print("DATAINFO长度为None")
+        word1 = protocol_info[:4]
+        #print('word1',word1)
+        word2 = protocol_info[4:]
+        word1_to_bin  = bin(int(word1,16)).lstrip('0b')    #2进制word1
+        word2_to_bin  = bin(int(word2,16)).lstrip('0b')    #2进制word2
+        if len(word1_to_bin)<16:                     #不够16位前面加0
+            for i in range(16-len(word1_to_bin)):
+                word1_to_bin='0'+word1_to_bin
+        if len(word2_to_bin)<16:                     #不够16位前面加0
+            for i in range(16-len(word2_to_bin)):
+                word2_to_bin='0'+word2_to_bin
+        #word1_to_bin = word1_to_bin[::-1]            #搞反了，反转
+        #word2_to_bin = word2_to_bin[::-1]  
+        #print('word1_to_bin',word1_to_bin)
+        #print('word2_to_bin',word2_to_bin)
+        word1_list = []
+        word2_list = []
+        for i in range(len(word1_to_bin)):               #把datainfo分割成数组，方便与前面的字典组合来选择数据
+            if i == 7 or i == 10 or i == 13 or i == 15:
+                word1_list.append(word1_to_bin[i-1:i+1])
+            elif i==6 or i == 9 or i == 12 or i ==14:
+                continue
+            else:
+                word1_list.append(word1_to_bin[i])        
+        for i in range(len(word2_to_bin)):                        
+            if i == 11 or i == 12 or i == 14 or 1<=i<=7:   #此处应要反向遍历。详细见文档标记
+                continue
+            elif i == 15 or i == 13:
+                word2_list.append(word2_to_bin[i-1:i+1])
+            elif i == 0:
+                word2_list.append(str(0))   #写死
+            else:
+                word2_list.append(word2_to_bin[i])
+                
+        #print(word1_list)
+        #print(word2_list)
+       
+        for i in range(len(protocol_switching_value_word2_dict)):        #通过字典把word作为key，开关量的状态作为value进行配对。
+            dict_key = list(protocol_switching_value_word2_dict.keys())[i]
+            dict_value = protocol_switching_value_word2_dict.get(dict_key)
+            index_for_value = int(word2_list[i],2)
+            protocol_dataf_list.append(dict_value[index_for_value])
+        for i in range(len(protocol_switching_value_word1_dict)):
+            dict_key = list(protocol_switching_value_word1_dict.keys())[i]
+            dict_value = protocol_switching_value_word1_dict.get(dict_key)
+            index_for_value = int(word1_list[i],2)
+            protocol_dataf_list.append(dict_value[index_for_value])
+        
+        protocol_dataf_list = protocol_dataf_list[::-1]
+
+        #print(protocol_dataf_list)
 
 
-####################拆出chksum并验证######################
-   
+
+
+#
     get_chksum = func.get_chksum(protocol_Drop_startbit[0:len(protocol_Drop_startbit)-4])
     #print("get_chksum",get_chksum)
     #最终判断计算值与协议校验值-1是否相等
     if get_chksum == protocol_chksum:
-        #print("CHKSUM校验码正确")
-        pass
+        print("CHKSUM校验码正确")
     else:
         print("CHKSUM校验码错误")  
 
@@ -166,8 +203,15 @@ def analysis_protocol(protocol_str):
 #pro_1 = pro  #使用encode来模拟串口传来的bytes数据
 
 #analysis_protocol(pro_1)
-
-
-
-
-
+   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

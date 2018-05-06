@@ -12,8 +12,12 @@ import threading
 #import serial.tools.list_ports as list_ports
 import protocol_config_apply_to_get_analog_quantity as protocol
 import func_def as func
+import protocol_config_apply_to_get_switching_value as protocol_switch
 #import untitled1
 
+
+#实例化cfg工具
+object_cfg_tool = func.cfg_tool()
 '''
 -------------------------------------------------
 串口定义
@@ -32,13 +36,13 @@ software.geometry('1000x720')  #窗口大小
 创建框架
 '''
 #框架frame1：顶部菜单框架。frame2：左侧数据框架 frame3右侧数据框架。
-frame_1 = tk.Frame(software,width=200,height=30,borderwidth = 2,relief ='groove') #框架1，内含第一行4个构件
-frame_1.grid(row=0,column=0)
+#frame_1 = tk.Frame(software,width=200,height=30,borderwidth = 2,relief ='groove') #框架1，内含第一行4个构件
+#frame_1.grid(row=0,column=0)
 frame_2 = tk.Frame(software,width=100,height = 100,borderwidth = 2,relief = 'sunken') #框架2,28个数字
-frame_2.grid(row=1,column = 0)
+frame_2.grid(row=0,column = 0)
 frame_3 = tk.Frame(software,width=100,height = 100,borderwidth = 2,relief = 'sunken') #框架3，电池等信息
-frame_3.grid(row=1,column = 1,sticky = 'N')
-
+frame_3.grid(row=0,column = 1,sticky = 'N')
+#数据显示label
 func.common_label(frame_2,'label_inFrame_index_left','ID',0,0,5,'raised')
 func.common_label(frame_2,'label_inFrame_name_left','名称',0,1,30,'raised')
 func.common_label(frame_2,'label_inFrame_A','A相',0,2,15,'raised')
@@ -48,6 +52,63 @@ func.common_label(frame_3,'label_inFrame_index_right','ID',0,0,5,'raised')
 func.common_label(frame_3,'label_inFrame_name_right','名称',0,1,30,'raised')
 func.common_label(frame_3,'label_inFrame_value_right','值',0,2,15,'raised')
 
+#菜单
+
+
+receive_switch_data_str = ''
+def Switching_Value_Window():         #开关量窗口及数值定义，为方便调用，定义于此。
+   print('ssssssssssssssssssssreceive_switch_data_str',receive_switch_data_str)
+   win = tk.Toplevel()
+   win.title('开关量状态-正在获取数据')
+   win.geometry('430x440')
+   func.common_label(win,'win','开关量名称',0,0,30,'raised')
+   func.common_label(win,'win','开关量状态',0,1,30,'raised')
+
+   for i in range(0,object_cfg_tool.Pick_Section_number('Switching_Value_Num')):
+       Switching_Value_name = object_cfg_tool.Pick_Option_In_Section('Switching_Value_list',i,1)
+       func.common_label(win,Switching_Value_name,Switching_Value_name,i+1,0,30,'groove')
+
+   def reflash_Switching_value():  #定时刷新开关量线程
+       global receive_switch_data_str
+       if receive_switch_data_str == '':
+           win.title('开关量状态-正在获取数据')
+           for i in range(object_cfg_tool.Pick_Section_number('Switching_Value_Num')):
+               func.common_label(win,i,'\\',i+1,1,30,'groove')
+
+       else:
+           win.title('开关量状态-已获取数据')
+           switching_value_return_list = protocol_switch.analysis_protocol(receive_switch_data_str)
+           for i in range(len(switching_value_return_list)):
+               func.common_label(win,switching_value_return_list[i],switching_value_return_list[i],i+1,1,30,'groove')
+       reflash_switch_value = threading.Timer(1,reflash_Switching_value)
+       reflash_switch_value.start()
+   reflash_switch_value = threading.Timer(1,reflash_Switching_value)
+   reflash_switch_value.start()
+       
+     
+menu_main_button = tk.Menu(software)
+
+menulist_file =  ['模拟量数据保存','故障点数据保存','历史记录数据保存','退出']
+commandlist_file = [func.donothing,func.donothing,func.donothing,software.quit]
+func.set_the_menu(menu_main_button,'文件','weight_file',menulist_file,commandlist_file)
+
+menulist_config =  ['系统参数设置','整流参数设置','逆变参数设置','电池参数设置']
+commandlist_config = [func.donothing,func.donothing,func.donothing,func.donothing]
+func.set_the_menu(menu_main_button,'设置','weight_config',menulist_config,commandlist_config)
+
+menulist_advanced =  ['修改密码','修改电池曲线','序列号','调试诊断','软件升级']
+commandlist_advanced = [func.donothing,func.donothing,func.donothing,func.donothing,func.donothing]
+func.set_the_menu(menu_main_button,'高级操作','weight_advanced',menulist_advanced,commandlist_advanced)
+
+menulist_help =  ['关于']
+commandlist_help = [func.donothing]
+func.set_the_menu(menu_main_button,'帮助','weight_help',menulist_help,commandlist_help)
+
+menulist_Switching_and_Warning =  ['开关量状态','报警量状态']
+commandlist_Switching_and_Warning = [Switching_Value_Window,func.donothing]
+func.set_the_menu(menu_main_button,'开关与报警','weight_help',menulist_Switching_and_Warning,commandlist_Switching_and_Warning)
+
+software.config(menu =menu_main_button)
 
 '''
 数据显示label
@@ -55,7 +116,7 @@ func.common_label(frame_3,'label_inFrame_value_right','值',0,2,15,'raised')
 
 
 #cfg调用类转为对象
-object_cfg_tool = func.cfg_tool()
+
 #设定Analog1_data面板ID名称值等
 for i in range(0,object_cfg_tool.Pick_Section_number('Analog1_Num')):
     func.common_label(frame_2,i,str(i),i+1,0,5,'groove')    #ID
@@ -82,7 +143,8 @@ response_data_str = ''           #定义接收到的数据字符串
 Device_VER = ''
 Device_ADR = ''
 Device_CID2 = ''
-def send_massage(): 
+def send_massage():
+    global receive_switch_data_str
     if ser.isOpen()== False:                                
         software.title('串口助手-通讯异常')
         func.set_analog_quantity_to_zero(frame_2,frame_3)
@@ -94,16 +156,9 @@ def send_massage():
         global Device_VER,Device_ADR,Device_CID2,response_data_str           #使用全局变量，可调用后面的Device
         
     elif ser.isOpen()== True:
-            try:                                        #此异常处理 用于检测是否串口被突然拔出
-                ser.inWaiting()
-            except(OSError,serial.SerialException):
-                print("串口有问题")
-                ser.close()
-                software.title('串口助手-通讯异常')
-                func.set_analog_quantity_to_zero(frame_2,frame_3)
-            else:
+            try:
                 if ser.inWaiting() == 0:
-                    time.sleep(0.5)
+                    time.sleep(0.1)
     
                     '''
                     massage为命令，命令组成为4f获取的设备号和设备地址+中间部分+计算出的校验和
@@ -113,10 +168,12 @@ def send_massage():
                     chksum_for_81 = func.get_chksum(Device_VER+Device_ADR+'2A810000')
                     chksum_for_82 = func.get_chksum(Device_VER+Device_ADR+'2A820000')
                     chksum_for_83 = func.get_chksum(Device_VER+Device_ADR+'2A830000')
+                    chksum_for_43 = func.get_chksum(Device_VER+Device_ADR+'2A430000')
                     massage_41 = '~'+Device_VER+Device_ADR+'2A410000'+chksum_for_41+'\r'      #获取标准模拟量数据指令
                     massage_81 = '~'+Device_VER+Device_ADR+'2A810000'+chksum_for_81+'\r'      #获取自定义模拟量数据1
                     massage_82 = '~'+Device_VER+Device_ADR+'2A820000'+chksum_for_82+'\r'      #获取自定义模拟量数据2
                     massage_83 = '~'+Device_VER+Device_ADR+'2A830000'+chksum_for_83+'\r'      #获取自定义模拟量数据3
+                    massage_43 = '~'+Device_VER+Device_ADR+'2A430000'+chksum_for_43+'\r'      #获取开关量
                     if Device_CID2 == '':
                         ser.write(massage_4F.encode())
                         Device_CID2 = func.data_split(massage_4F,'CID2')
@@ -133,9 +190,12 @@ def send_massage():
                         ser.write(massage_83.encode())
                         Device_CID2 = func.data_split(massage_83,'CID2')
                     elif Device_CID2 == '83':
+                        ser.write(massage_43.encode())
+                        Device_CID2 = func.data_split(massage_43,'CID2')
+                    elif Device_CID2 == '43':
                         ser.write(massage_41.encode())
                         Device_CID2 = func.data_split(massage_41,'CID2')
-                    
+                        
                     
                 
                 
@@ -150,16 +210,16 @@ def send_massage():
                         break
                     
                     if data =='\r':                      #判断是否为回车
-                        print("response_data_str",response_data_str)
-                        Device_LENGTH = func.data_split(response_data_str,'LENGTH')
-                        print("Device_LENGTH",Device_LENGTH)
+                        #print("response_data_str",response_data_str)
+                        #Device_LENGTH = func.data_split(response_data_str,'LENGTH')
+                        #print("Device_LENGTH",Device_LENGTH)
                         #print("massage_41",chksum_for_41)
                         Device_VER = func.data_split(response_data_str,'VER')   #抽出响应中的VER
                         Device_ADR = func.data_split(response_data_str,'ADR')   #抽出响应中的ADR
                         Device_RTN = func.data_split(response_data_str,'CID2')  #抽出响应中的CID2
-                        Device_DATA_NUM = func.data_split(response_data_str,'DATA_NUM') #抽出响应的DATA数量，也就是判断标准 
+                        #Device_DATA_NUM = func.data_split(response_data_str,'DATA_NUM') #抽出响应的DATA数量，也就是判断标准 
                         Device_DATAFLAG = func.data_split(response_data_str,'DATAFLAG')
-                        print("Device_DATA_NUM",Device_DATA_NUM)
+                        #print("Device_DATA_NUM",Device_DATA_NUM)
                         #print("Device_Ver",Device_Ver)
                         if Device_RTN != '00':
                             software.title('串口助手-通讯异常')
@@ -172,14 +232,27 @@ def send_massage():
                         else:          #RTN为00，数据正常，判断长度来选择分配数值
                             print('当前请求CID2',Device_CID2)
                             
-                            response_data_str = response_data_str.split('\r')[0]                #去掉结束位                    
-                            protocol_list = protocol.analysis_protocol(response_data_str)
-                            print('protocol_list：',protocol_list)
+                            response_data_str = response_data_str.split('\r')[0]#去掉结束位
+                            '''
+                            开关量于告警量空间
+                            '''
+                            if Device_CID2 == '43':
+                                                                                              
+                                receive_switch_data_str = response_data_str
+                                #print('receive_switch_data_str!!!!!!!!!!!!!!!!!!!!!!',receive_switch_data_str)
+                                #switching_value_return_list = protocol_switch.analysis_protocol(receive_switch_data_str)
+                                #print('switching_value_return_list!!!!!!!!!!!!!!!!!!!!!!',switching_value_return_list)
+                                #Switching_Value_Window()
+                            ########################################    
+                            else:
+                                protocol_list = protocol.analysis_protocol(response_data_str)
+                                print('protocol_list：',protocol_list)
                             #下列字典的键值对用于放入label面板中，通过set_analog_quantity_to_label函数实现
                             #key:名称  value1:所在框架 value2：响应解析值 value3:所在面板的位置（行）
 
                             if  Device_CID2 == '41':
-                                '''标准模拟量数据，使用字典实现循环。'''
+                                
+                                
                                 common_label_dict_for_41 = {'输入线电压':[frame_2,protocol_list[0],1],
                                                             '输出相电压':[frame_2,protocol_list[3],9],
                                                             '输出电流':[frame_2,protocol_list[6],10],
@@ -190,6 +263,7 @@ def send_massage():
                                                             }
                                 
                                 func.set_analog_quantity_to_label(common_label_dict_for_41)
+                                
                             elif Device_CID2 == '81':
                                 '自定义模拟量数据1'
                                 common_label_dict_for_81 = {'输入相电流':[frame_2,protocol_list[0],2],
@@ -226,33 +300,38 @@ def send_massage():
                                                                 'IGBT模块温度':[frame_3,protocol_list[9],20]
                                                                 }
                                     func.set_analog_quantity_to_label(common_label_dict_for_83)
-                                    '''
-                                    func.common_label(frame_2,'输出有功功率',protocol_list[3],12,2,15,'groove')
-                                    func.common_label(frame_3,'电池老化系数',protocol_list[1],6,2,15,'groove')
-                                    func.common_label(frame_3,'总输入功率因数',protocol_list[2],15,2,15,'groove')
-                                    func.common_label(frame_3,'环境温度',protocol_list[0],19,2,15,'groove')
-                                    func.common_label(frame_3,'IGBT模块温度',protocol_list[9],20,2,15,'groove')
-                                    '''
+                              
                                 else:
                                     print("DATA_NUM数据有错误")
-                            elif Device_DATA_NUM == '90':
-                                print('DATA_NUM为90')
+                            #elif Device_DATA_NUM == '90':
+                            #    print('DATA_NUM为90')                           
                             else:
                                 print("DATA_NUM数据有错误")
                             software.title('串口助手-通讯正常')
-    
+
                             ser.flushInput()
-                        
+                         
                         
                         
                 if ser.inWaiting() == 0:      #串口中待处理的数据为0后，把响应字符串清0
                     print("response_data_str的值为",response_data_str)
-                    response_data_str = ''    
+                    response_data_str = '' 
+            except(OSError,serial.SerialException):
+                #print("串口有问题")
+                ser.close()
+                software.title('串口助手-通讯异常')
+                func.set_analog_quantity_to_zero(frame_2,frame_3)
+                receive_switch_data_str = ''      #拔出串口开关量手动置空
     global send_massage_timer
-    send_massage_timer = threading.Timer(1,send_massage) 
+    send_massage_timer = threading.Timer(0.2,send_massage) 
     send_massage_timer.start()
-send_massage_timer = threading.Timer(1,send_massage) 
+send_massage_timer = threading.Timer(0.2,send_massage) 
 send_massage_timer.start()
+
+
+
+
+
 
 software.mainloop()
 
