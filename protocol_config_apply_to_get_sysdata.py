@@ -9,7 +9,11 @@ import func_def as func
 
 
 def analysis_protocol(protocol_str):
-    protocol_info = func.data_split(protocol_str,'DATA_INFO')
+    protocol_info = func.data_split(protocol_str,'DATA_INFO_for_Sysdata')
+    protocol_num = func.data_split(protocol_str,'DATA_NUM_for_Sysdata')
+    protocol_num = int(protocol_num,16)
+    #print('protocol_info',protocol_info)
+    #print('protocol_num',protocol_num)
     if func.data_verify(protocol_str) == 0:
         print("数据有错误")
         return 0
@@ -20,7 +24,7 @@ def analysis_protocol(protocol_str):
 ####################datainfo处理#########################
     if protocol_info == None:
         pass
-    elif len(protocol_info)%8 != 0:         #判断info长度
+    elif len(protocol_info)%8 != 0 or len(protocol_info)/8 != protocol_num:         #判断info长度
         print("DATAINFO长度有误")
         return 0
     elif len(protocol_info)%8 == 0:          #如果是8的倍数，则分割开始计算数值
@@ -47,7 +51,6 @@ def analysis_protocol(protocol_str):
 #pro = input("请输入指令：")
 
 #pro_1 = pro  #使用encode来模拟串口传来的bytes数据
-
 #analysis_protocol(pro_1)
 
 
